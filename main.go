@@ -4,6 +4,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
 
@@ -14,13 +15,28 @@ import (
 
 var ctx = context.Background()
 
+type Name struct {
+	Id        int64  `spanner:"id" json:"id"`
+	FirstName string `spanner:"first_name" json:"first_name"`
+}
+
 // The main function pulls the data from the pre-created `some_table` from
 // `database` and returns JSON
 //
-// This is a simple experiment to check the read
-// speed and latency
+// This is a simple experiment to check the read speed and latency
 func main() {
-	db := "projects/piotrostr-resources/instances/big-db/databases/database"
+	config := map[string]string{
+		"instance": "big-db",
+		"project":  "piotrostr-resources",
+		"database": "database",
+		"table":    "some_table",
+	}
+	db := fmt.Sprintf(
+		"projects/%s/instances/%s/databases/%s",
+		config["project"],
+		config["instance"],
+		config["database"],
+	)
 	client, err := spanner.NewClient(ctx, db)
 	if err != nil {
 		log.Fatal(err)
@@ -31,7 +47,10 @@ func main() {
 	gin.SetMode(gin.ReleaseMode)
 
 	r.GET("/", func(c *gin.Context) {
-		c.String(http.StatusOK, "im healthy!\n")
+		c.JSON(http.StatusOK, gin.H{
+			"status": "healthy",
+			"config": config,
+		})
 	})
 
 	r.GET("/get-names", func(c *gin.Context) {
@@ -40,20 +59,32 @@ func main() {
 
 		iter := tx.Query(
 			ctx,
-			spanner.NewStatement(`SELECT * FROM some_table`),
+			spanner.NewStatement(
+				fmt.Sprintf(
+					`SELECT * FROM %s`,
+					config["table"],
+				),
+			),
 		)
 		defer iter.Stop()
 
-		var names []string
 		i := 0
+		var names []Name
 		for {
 			row, err := iter.Next()
 			if err == iterator.Done {
 				break
 			} else if err != nil {
-				log.Fatal(err)
+				log.Println(err)
 			}
-			names = append(names, row.String())
+
+			var ptr Name
+			err = row.ToStruct(&ptr)
+			if err != nil {
+				log.Println(err)
+			}
+
+			names = append(names, ptr)
 
 			// the i is in order not to pull too much data
 			i += 1
