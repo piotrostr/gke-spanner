@@ -33,6 +33,7 @@ spec:
       labels:
         app: spanner-go-experiment-deployment
     spec:
+      serviceAccountName: kube-spanner-admin
       containers:
       - name: spanner-go-experiment-deployment
         image: gcr.io/piotrostr-resources/spanner-go-experiment
