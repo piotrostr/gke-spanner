@@ -110,8 +110,15 @@ func main() {
 	})
 
 	r.GET("/get-names", func(c *gin.Context) {
-		names := GetNames(client, Config)
-		c.JSON(http.StatusOK, names)
+		names, err := GetNames(client, Config)
+		if err == nil {
+			c.JSON(http.StatusOK, names)
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"status": "error",
+				"error":  err,
+			})
+		}
 	})
 
 	if err = r.Run(":8080"); err != nil {

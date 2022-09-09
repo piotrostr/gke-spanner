@@ -23,7 +23,7 @@ func AddNames(client *spanner.Client, config map[string]string) error {
 	return nil
 }
 
-func GetNames(client *spanner.Client, config map[string]string) []Name {
+func GetNames(client *spanner.Client, config map[string]string) ([]Name, error) {
 	tx := client.ReadOnlyTransaction()
 	defer tx.Close()
 
@@ -45,7 +45,7 @@ func GetNames(client *spanner.Client, config map[string]string) []Name {
 		if err == iterator.Done {
 			break
 		} else if err != nil {
-			log.Println(err)
+			return nil, err
 		}
 
 		var ptr Name
@@ -63,5 +63,5 @@ func GetNames(client *spanner.Client, config map[string]string) []Name {
 		}
 
 	}
-	return names
+	return names, nil
 }
