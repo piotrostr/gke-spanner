@@ -1,0 +1,113 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ingress
+spec:
+  rules:
+    - http:
+        paths:
+          - path: /
+            pathType: Exact
+            backend:
+              service: 
+                name: spanner-go-experiment-deployment-svc
+                port:
+                  number: 8080
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: spanner-go-experiment-deployment
+  namespace: default
+  labels:
+    app: spanner-go-experiment-deployment
+spec:
+  replicas: 3
+  revisionHistoryLimit: 5
+  selector:
+    matchLabels:
+      app: spanner-go-experiment-deployment
+  template:
+    metadata:
+      labels:
+        app: spanner-go-experiment-deployment
+    spec:
+      containers:
+      - name: spanner-go-experiment-deployment
+        image: gcr.io/piotrostr-resources/spanner-go-experiment
+        ports:
+        - containerPort: 8080
+        readinessProbe:
+          tcpSocket:
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        livenessProbe:
+          tcpSocket:
+            port: 8080
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        resources:
+          requests:
+            cpu: 500m
+            memory: 512Mi
+          limits:
+            cpu: 1000m
+            memory: 1024Mi
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: spanner-go-experiment-deployment-svc
+  namespace: default
+spec:
+  ports:
+    - port: 8080
+  selector:
+    app: spanner-go-experiment-deployment
+
+---
+
+apiVersion: autoscaling/v2beta1
+kind: HorizontalPodAutoscaler
+metadata:
+  name: spanner-go-experiment-deployment-hpa-c
+  namespace: default
+  labels:
+    app: spanner-go-experiment-deployment-hpa-c
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: spanner-go-experiment-deployment
+  minReplicas: 3
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      targetAverageUtilization: 80
+
+---
+
+apiVersion: autoscaling/v2beta1
+kind: HorizontalPodAutoscaler
+metadata:
+  name: spanner-go-experiment-deployment-hpa-m
+  namespace: default
+  labels:
+    app: spanner-go-experiment-deployment-hpa-m
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: spanner-go-experiment-deployment
+  minReplicas: 3
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: memory
+      targetAverageUtilization: 80
